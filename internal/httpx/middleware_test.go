@@ -57,6 +57,9 @@ func TestOriginCheck(t *testing.T) {
 		{"POST", "https://evil.example", "", 403},
 		{"POST", "", "", 403},
 		{"POST", "https://recipes.example.com", "cross-site", 403},
+		{"POST", "null", "same-origin", 200}, // Chrome with strict referrer policy
+		{"POST", "null", "", 403},
+		{"POST", "null", "none", 403},
 	}
 	for _, c := range cases {
 		r := httptest.NewRequestWithContext(context.Background(), c.method, "/x", strings.NewReader(""))
