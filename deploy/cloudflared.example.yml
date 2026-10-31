@@ -1,0 +1,14 @@
+# Example cloudflared configuration for a locally installed tunnel.
+# Replace <TUNNEL-ID> and the credentials path; the app listens on
+# 127.0.0.1:8080 and is started with RM_TRUSTED_PROXIES=cloudflare,127.0.0.1
+# and RM_REQUIRE_PROXY=true.
+tunnel: <TUNNEL-ID>
+credentials-file: /etc/cloudflared/<TUNNEL-ID>.json
+
+ingress:
+  - hostname: recipes.example.com
+    service: http://127.0.0.1:8080
+    originRequest:
+      connectTimeout: 10s
+      noHappyEyeballs: true
+  - service: http_status:404

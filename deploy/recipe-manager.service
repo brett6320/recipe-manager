@@ -1,0 +1,60 @@
+[Unit]
+Description=Recipe manager
+Documentation=https://github.com/brett6320/recipe-manager
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=recipe-manager
+Group=recipe-manager
+EnvironmentFile=/etc/recipe-manager/env
+Environment=RM_DATA_DIR=/var/lib/recipe-manager
+ExecStart=/usr/local/bin/recipe-manager
+Restart=on-failure
+RestartSec=3s
+
+# Filesystem
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ReadWritePaths=/var/lib/recipe-manager
+ReadOnlyPaths=/etc/recipe-manager
+UMask=0077
+
+# Privileges
+NoNewPrivileges=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+# Uncomment to bind a port < 1024 directly:
+# AmbientCapabilities=CAP_NET_BIND_SERVICE
+# CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+
+# Kernel / namespaces
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+ProtectProc=invisible
+ProcSubset=pid
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RemoveIPC=true
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources @mount @debug @cpu-emulation @obsolete
+RestrictAddressFamilies=AF_INET AF_INET6
+
+# Resources
+LimitNOFILE=4096
+TasksMax=128
+MemoryMax=512M
+
+[Install]
+WantedBy=multi-user.target
