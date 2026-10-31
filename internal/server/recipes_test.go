@@ -50,7 +50,7 @@ func TestRecipesAndSharing(t *testing.T) {
 	}
 	folderID := fm[1]
 	resp, _ = e.post("/recipes", url.Values{
-		"title": {"<b>Pasta</b> ​ night"}, "folder": {folderID},
+		"title": {"<b>Pasta</b> \u200b night"}, "folder": {folderID},
 		"ingredients": {"200g pasta\n\n1 tbsp salt"}, "steps": {"Boil\nDrain"}, "tags": {"Dinner, quick"},
 		"source_url": {"javascript:alert(1)"}, "image_url": {"https://img.example/p.jpg"},
 	}, true)
