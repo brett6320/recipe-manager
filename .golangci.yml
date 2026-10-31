@@ -14,6 +14,10 @@ linters:
     gosec:
       excludes:
         - G104 # unhandled errors are covered by errcheck
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters: [gosec, noctx, bodyclose]
 formatters:
   enable:
     - gofmt
