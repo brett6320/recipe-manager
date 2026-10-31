@@ -1,0 +1,7 @@
+/data/
+/recipe-manager
+/dist/
+*.db
+*.db-*
+.env
+.claude/wrappers/

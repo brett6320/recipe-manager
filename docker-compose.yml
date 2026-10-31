@@ -1,0 +1,30 @@
+services:
+  recipe-manager:
+    build: .
+    image: recipe-manager:latest
+    restart: unless-stopped
+    environment:
+      RM_PUBLIC_URL: ${RM_PUBLIC_URL:?set RM_PUBLIC_URL, e.g. https://recipes.example.com}
+      RM_TRUSTED_PROXIES: ${RM_TRUSTED_PROXIES:-cloudflare}
+      RM_REQUIRE_PROXY: ${RM_REQUIRE_PROXY:-false}
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - recipe-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 256m
+    healthcheck:
+      test: ["CMD", "/recipe-manager", "-healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  recipe-data:
