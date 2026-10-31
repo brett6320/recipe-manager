@@ -155,12 +155,16 @@ func OriginCheck(origin string) func(http.Handler) http.Handler {
 	}
 }
 
-// MaxBody caps request bodies.
-func MaxBody(n int64) func(http.Handler) http.Handler {
+// MaxBody caps request bodies at n bytes, with per-path overrides.
+func MaxBody(n int64, overrides map[string]int64) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			limit := n
+			if o, ok := overrides[r.URL.Path]; ok {
+				limit = o
+			}
 			if r.Body != nil {
-				r.Body = http.MaxBytesReader(w, r.Body, n)
+				r.Body = http.MaxBytesReader(w, r.Body, limit)
 			}
 			next.ServeHTTP(w, r)
 		})
