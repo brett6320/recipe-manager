@@ -1,0 +1,23 @@
+{{define "content"}}
+<h1>Sign in</h1>
+{{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+<div class="row">
+  <div class="card">
+    <h2>Passkey</h2>
+    <p class="muted">Use Face ID, Touch ID, Windows Hello or a security key.</p>
+    <button type="button" id="passkey-login">Sign in with a passkey</button>
+    <p id="passkey-error" class="error" hidden></p>
+  </div>
+  <div class="card">
+    <h2>Authenticator app</h2>
+    <form method="post" action="/login/totp">
+      <label for="username">Username</label>
+      <input id="username" name="username" required autocomplete="username">
+      <label for="code">6-digit code</label>
+      <input id="code" name="code" required inputmode="numeric" pattern="[0-9 ]{6,7}" autocomplete="one-time-code">
+      <div class="actions"><button type="submit" class="secondary">Sign in with code</button></div>
+    </form>
+  </div>
+</div>
+<script src="/static/webauthn.js" defer></script>
+{{end}}
