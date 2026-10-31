@@ -1,0 +1,20 @@
+version: "2"
+linters:
+  enable:
+    - gosec
+    - bodyclose
+    - errorlint
+    - misspell
+    - unconvert
+    - unparam
+    - noctx
+    - sqlclosecheck
+    - rowserrcheck
+  settings:
+    gosec:
+      excludes:
+        - G104 # unhandled errors are covered by errcheck
+formatters:
+  enable:
+    - gofmt
+    - goimports
