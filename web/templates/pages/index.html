@@ -1,4 +1,46 @@
 {{define "content"}}
-<h1>Recipes</h1>
-<p>Nothing here yet.</p>
+<form method="get" action="/search" class="search">
+  <input type="search" name="q" placeholder="Search recipes, ingredients, tags…" aria-label="Search">
+  <button type="submit" class="secondary">Search</button>
+</form>
+
+<section>
+  <div class="section-head">
+    <h1>My recipes</h1>
+    <div class="actions">
+      <a class="btn" href="/recipes/new">New recipe</a>
+      <a class="btn secondary" href="/import">Import</a>
+    </div>
+  </div>
+  {{if .Data.Subfolders}}
+  <div class="folders">
+    {{range .Data.Subfolders}}<a class="folder" href="/folders/{{.ID}}">📁 {{.Name}}</a>{{end}}
+  </div>
+  {{end}}
+  <form method="post" action="/folders" class="row newfolder">
+    <input name="name" placeholder="New folder name" maxlength="80" required>
+    <button type="submit" class="secondary">Create folder</button>
+  </form>
+  {{template "recipe_list" .Data.Recipes}}
+</section>
+
+{{if or .Data.Shared .Data.SharedDirs}}
+<section>
+  <h2>Shared with me</h2>
+  {{if .Data.SharedDirs}}
+  <div class="folders">
+    {{range .Data.SharedDirs}}<a class="folder" href="/folders/{{.ID}}">📁 {{.Path}}</a>{{end}}
+  </div>
+  {{end}}
+  {{template "recipe_list" .Data.Shared}}
+</section>
+{{end}}
+
+{{if .Data.Tags}}
+<section>
+  <h2>Tags</h2>
+  <p>{{range $t, $n := .Data.Tags}}<a class="tag" href="/search?tag={{$t}}">{{$t}} ({{$n}})</a>{{end}}</p>
+</section>
+{{end}}
+<p class="muted"><a href="/export.json">Export my recipes (JSON)</a> · <a href="/groups">Groups</a></p>
 {{end}}

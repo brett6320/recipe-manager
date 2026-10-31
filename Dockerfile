@@ -15,5 +15,5 @@ COPY --from=build --chown=65532:65532 /out/data /data
 ENV RM_LISTEN=0.0.0.0:8080 RM_DATA_DIR=/data
 VOLUME /data
 EXPOSE 8080
-USER nonroot:nonroot
+USER 65532:65532
 ENTRYPOINT ["/recipe-manager"]

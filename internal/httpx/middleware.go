@@ -110,7 +110,7 @@ func SecurityHeaders(hsts bool) func(http.Handler) http.Handler {
 			h.Set("Content-Security-Policy", "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' https: data:; font-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'; object-src 'none'; upgrade-insecure-requests")
 			h.Set("X-Content-Type-Options", "nosniff")
 			h.Set("X-Frame-Options", "DENY")
-			h.Set("Referrer-Policy", "no-referrer")
+			h.Set("Referrer-Policy", "same-origin")
 			h.Set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=(), publickey-credentials-get=(self), publickey-credentials-create=(self)")
 			h.Set("Cross-Origin-Opener-Policy", "same-origin")
 			h.Set("Cross-Origin-Resource-Policy", "same-origin")
@@ -123,9 +123,13 @@ func SecurityHeaders(hsts bool) func(http.Handler) http.Handler {
 	}
 }
 
-// OriginCheck rejects state-changing requests whose Origin (or, as a
-// fallback, Referer / Sec-Fetch-Site) does not match the configured origin.
+// OriginCheck rejects state-changing requests that do not provably come
+// from our own origin. Browsers set Sec-Fetch-Site themselves (pages cannot
+// forge it), so "same-origin" is accepted outright; otherwise the Origin
+// header (or Referer as a fallback) must match the configured origin.
 // Together with SameSite=Strict cookies this defeats CSRF without tokens.
+// Note: Referrer-Policy must not be "no-referrer", or Chrome sends
+// "Origin: null" on same-origin form posts.
 func OriginCheck(origin string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -134,7 +138,13 @@ func OriginCheck(origin string) func(http.Handler) http.Handler {
 				next.ServeHTTP(w, r)
 				return
 			}
-			if sfs := r.Header.Get("Sec-Fetch-Site"); sfs != "" && sfs != "same-origin" && sfs != "none" {
+			switch r.Header.Get("Sec-Fetch-Site") {
+			case "same-origin":
+				next.ServeHTTP(w, r)
+				return
+			case "", "none":
+				// fall through to Origin/Referer check
+			default:
 				http.Error(w, "cross-site request rejected", http.StatusForbidden)
 				return
 			}
@@ -155,12 +165,16 @@ func OriginCheck(origin string) func(http.Handler) http.Handler {
 	}
 }
 
-// MaxBody caps request bodies.
-func MaxBody(n int64) func(http.Handler) http.Handler {
+// MaxBody caps request bodies at n bytes, with per-path overrides.
+func MaxBody(n int64, overrides map[string]int64) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			limit := n
+			if o, ok := overrides[r.URL.Path]; ok {
+				limit = o
+			}
 			if r.Body != nil {
-				r.Body = http.MaxBytesReader(w, r.Body, n)
+				r.Body = http.MaxBytesReader(w, r.Body, limit)
 			}
 			next.ServeHTTP(w, r)
 		})

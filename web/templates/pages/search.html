@@ -1,0 +1,8 @@
+{{define "content"}}
+<form method="get" action="/search" class="search">
+  <input type="search" name="q" value="{{.Data.Query}}" placeholder="Search recipes, ingredients, tags…" aria-label="Search" autofocus>
+  <button type="submit" class="secondary">Search</button>
+</form>
+<h1>{{if .Data.Tag}}Tagged “{{.Data.Tag}}”{{else if .Data.Query}}Results for “{{.Data.Query}}”{{else}}All recipes{{end}}</h1>
+{{template "recipe_list" .Data.Recipes}}
+{{end}}

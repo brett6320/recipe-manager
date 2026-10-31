@@ -1,0 +1,16 @@
+{{define "content"}}
+<h1>Groups</h1>
+<p class="muted">Groups let you share recipes or folders with several people at once. Anyone can create a group; its creator (or an admin) manages members.</p>
+<div class="card">
+  <form method="post" action="/groups" class="row">
+    <div><label for="name">New group</label><input id="name" name="name" maxlength="60" required placeholder="e.g. Family"></div>
+    <div class="actions" style="align-self:flex-end"><button type="submit">Create</button></div>
+  </form>
+</div>
+{{if .Data}}
+<table>
+  <thead><tr><th>Name</th><th>Owner</th><th>Members</th></tr></thead>
+  <tbody>{{range .Data}}<tr><td><a href="/groups/{{.ID}}">{{.Name}}</a></td><td>{{.OwnerName}}</td><td>{{.Members}}</td></tr>{{end}}</tbody>
+</table>
+{{else}}<p class="muted">No groups yet.</p>{{end}}
+{{end}}
