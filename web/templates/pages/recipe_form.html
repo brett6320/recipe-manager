@@ -1,7 +1,7 @@
 {{define "content"}}
 {{$r := .Data.Recipe}}
 <h1>{{.Title}}</h1>
-{{if .Data.Imported}}<div class="flash">Imported. Review the fields below, then save.</div>{{end}}
+{{if .Data.Imported}}<div class="flash">Imported. Review the fields below, then save.{{with .Data.Warning}} {{.}}{{end}}</div>{{end}}
 {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
 <form method="post" action="{{.Data.Action}}" class="card">
   <label for="title">Title</label>

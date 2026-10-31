@@ -1,0 +1,16 @@
+{{define "content"}}
+<h1>Import a recipe</h1>
+<p class="muted">Paste a link to a recipe page, upload an HTML, JSON or PDF file, or paste the text. You will review the result before it is saved. Files up to {{.Data.MaxMB}} MB.</p>
+{{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+<form method="post" action="/import" enctype="multipart/form-data" class="card">
+  <input type="hidden" name="folder" value="{{.Data.Folder}}">
+  <label for="url">Web address</label>
+  <input id="url" name="url" type="url" placeholder="https://www.example.com/recipes/…" autofocus>
+  <p class="muted">Works best with sites that publish schema.org recipe data (most do).</p>
+  <label for="file">Or upload a file</label>
+  <input id="file" name="file" type="file" accept=".html,.htm,.json,.pdf,.txt,text/html,application/json,application/pdf,text/plain">
+  <label for="text">Or paste text</label>
+  <textarea id="text" name="text" rows="8" placeholder="Title&#10;&#10;Ingredients&#10;…&#10;&#10;Method&#10;…"></textarea>
+  <div class="actions"><button type="submit">Import</button><a class="btn secondary" href="/">Cancel</a></div>
+</form>
+{{end}}

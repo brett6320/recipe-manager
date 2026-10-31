@@ -236,6 +236,7 @@ type recipeFormData struct {
 	Action     string
 	CanMove    bool
 	Imported   bool
+	Warning    string
 	Ingredient string
 	Steps      string
 	Tags       string
