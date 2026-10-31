@@ -1,0 +1,40 @@
+{{define "content"}}
+{{$r := .Data.Recipe}}
+<h1>{{.Title}}</h1>
+{{if .Data.Imported}}<div class="flash">Imported. Review the fields below, then save.</div>{{end}}
+{{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+<form method="post" action="{{.Data.Action}}" class="card">
+  <label for="title">Title</label>
+  <input id="title" name="title" value="{{$r.Title}}" required maxlength="200" autofocus>
+  <label for="description">Description</label>
+  <textarea id="description" name="description" rows="3" maxlength="2000">{{$r.Description}}</textarea>
+  <div class="row">
+    <div><label for="servings">Servings</label><input id="servings" name="servings" value="{{$r.Servings}}" maxlength="60"></div>
+    <div><label for="prep_minutes">Prep (min)</label><input id="prep_minutes" name="prep_minutes" type="number" min="0" max="100000" value="{{with $r.PrepMinutes}}{{.}}{{end}}"></div>
+    <div><label for="cook_minutes">Cook (min)</label><input id="cook_minutes" name="cook_minutes" type="number" min="0" max="100000" value="{{with $r.CookMinutes}}{{.}}{{end}}"></div>
+  </div>
+  <label for="ingredients">Ingredients <span class="muted">(one per line)</span></label>
+  <textarea id="ingredients" name="ingredients" rows="10">{{.Data.Ingredient}}</textarea>
+  <label for="steps">Method <span class="muted">(one step per line)</span></label>
+  <textarea id="steps" name="steps" rows="10">{{.Data.Steps}}</textarea>
+  <label for="tags">Tags <span class="muted">(comma separated)</span></label>
+  <input id="tags" name="tags" value="{{.Data.Tags}}">
+  <div class="row">
+    <div><label for="source_url">Source URL</label><input id="source_url" name="source_url" type="url" value="{{$r.SourceURL}}" maxlength="2048"></div>
+    <div><label for="image_url">Image URL</label><input id="image_url" name="image_url" type="url" value="{{$r.ImageURL}}" maxlength="2048"></div>
+  </div>
+  <label for="notes">Notes</label>
+  <textarea id="notes" name="notes" rows="4" maxlength="5000">{{$r.Notes}}</textarea>
+  {{if .Data.CanMove}}
+  <label for="folder">Folder</label>
+  <select id="folder" name="folder">
+    <option value="">(top level)</option>
+    {{range .Data.Folders}}<option value="{{.ID}}" {{if eq (deref $r.FolderID) .ID}}selected{{end}}>{{.Path}}</option>{{end}}
+  </select>
+  {{end}}
+  <div class="actions">
+    <button type="submit">Save</button>
+    <a class="btn secondary" href="{{if $r.ID}}/recipes/{{$r.ID}}{{else}}/{{end}}">Cancel</a>
+  </div>
+</form>
+{{end}}

@@ -1,0 +1,48 @@
+{{define "share_panel"}}
+<div class="card">
+  <h2>Sharing</h2>
+  {{if .Shares}}
+  <table>
+    <thead><tr><th>Who</th><th>Access</th><th></th></tr></thead>
+    <tbody>
+    {{range .Shares}}
+    <tr>
+      <td>{{if eq .GranteeType "group"}}👥 {{end}}{{.GranteeName}}</td>
+      <td>{{.Perm}}</td>
+      <td><form method="post" action="/shares/{{.ID}}/delete" class="inline"><input type="hidden" name="back" value="{{$.Back}}"><button class="secondary small" type="submit">Revoke</button></form></td>
+    </tr>
+    {{end}}
+    </tbody>
+  </table>
+  {{else}}<p class="muted">Only you can see this{{if eq .SubjectType "folder"}} folder and everything inside it{{end}}.</p>{{end}}
+  <form method="post" action="/shares" class="row share-form">
+    <input type="hidden" name="subject_type" value="{{.SubjectType}}">
+    <input type="hidden" name="subject_id" value="{{.SubjectID}}">
+    <div>
+      <label for="grantee_type">Share with</label>
+      <select name="grantee_type" id="grantee_type" data-toggle-grantee>
+        <option value="user">a user</option>
+        <option value="group">a group</option>
+      </select>
+    </div>
+    <div data-grantee="user">
+      <label for="share-user">Username</label>
+      <input id="share-user" name="user" autocomplete="off">
+    </div>
+    <div data-grantee="group" hidden>
+      <label for="share-group">Group</label>
+      <select id="share-group" name="group">
+        {{range .Groups}}<option value="{{.ID}}">{{.Name}}</option>{{end}}
+      </select>
+    </div>
+    <div>
+      <label for="perm">Access</label>
+      <select id="perm" name="perm">
+        <option value="view">Can view</option>
+        <option value="edit">Can edit</option>
+      </select>
+    </div>
+    <div class="actions" style="align-self:flex-end"><button type="submit" class="secondary">Share</button></div>
+  </form>
+</div>
+{{end}}

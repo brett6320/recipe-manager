@@ -1,0 +1,51 @@
+{{define "content"}}
+<nav class="crumbs">
+  {{if .Data.IsOwner}}<a href="/">My recipes</a>{{else}}<a href="/">Shared with me</a>{{end}}
+  {{range .Data.Crumbs}} / <a href="/folders/{{.ID}}">{{.Name}}</a>{{end}}
+</nav>
+<div class="section-head">
+  <h1>📁 {{.Data.Folder.Name}}</h1>
+  {{if .Data.Perm.CanEdit}}
+  <div class="actions"><a class="btn" href="/recipes/new?folder={{.Data.Folder.ID}}">New recipe here</a></div>
+  {{end}}
+</div>
+{{if not .Data.IsOwner}}<p class="muted">Shared by {{with index .Data.Crumbs 0}}{{end}}another user · you can {{.Data.Perm}}.</p>{{end}}
+
+{{if .Data.Subfolders}}
+<div class="folders">
+  {{range .Data.Subfolders}}<a class="folder" href="/folders/{{.ID}}">📁 {{.Name}}</a>{{end}}
+</div>
+{{end}}
+{{if .Data.IsOwner}}
+<form method="post" action="/folders" class="row newfolder">
+  <input type="hidden" name="parent" value="{{.Data.Folder.ID}}">
+  <input name="name" placeholder="New subfolder name" maxlength="80" required>
+  <button type="submit" class="secondary">Create subfolder</button>
+</form>
+{{end}}
+
+{{template "recipe_list" .Data.Recipes}}
+
+{{if .Data.IsOwner}}
+<details class="card">
+  <summary>Folder settings</summary>
+  <form method="post" action="/folders/{{.Data.Folder.ID}}/rename" class="row">
+    <div><label for="rename">Rename</label><input id="rename" name="name" value="{{.Data.Folder.Name}}" maxlength="80" required></div>
+    <div class="actions" style="align-self:flex-end"><button type="submit" class="secondary">Rename</button></div>
+  </form>
+  <form method="post" action="/folders/{{.Data.Folder.ID}}/move" class="row">
+    <div><label for="moveto">Move to</label>
+      <select id="moveto" name="parent">
+        <option value="">(top level)</option>
+        {{range .Data.AllFolders}}{{if ne .ID $.Data.Folder.ID}}<option value="{{.ID}}" {{if eq (deref $.Data.Folder.ParentID) .ID}}selected{{end}}>{{.Path}}</option>{{end}}{{end}}
+      </select></div>
+    <div class="actions" style="align-self:flex-end"><button type="submit" class="secondary">Move</button></div>
+  </form>
+  <form method="post" action="/folders/{{.Data.Folder.ID}}/delete" data-confirm="Delete this folder? Recipes inside move up one level; subfolders are removed.">
+    <div class="actions"><button type="submit" class="danger">Delete folder</button></div>
+  </form>
+</details>
+{{template "share_panel" (dict "Shares" .Data.Shares "Groups" .Data.Groups "SubjectType" "folder" "SubjectID" .Data.Folder.ID "Back" (printf "/folders/%d" .Data.Folder.ID))}}
+{{end}}
+<script src="/static/app.js" defer></script>
+{{end}}

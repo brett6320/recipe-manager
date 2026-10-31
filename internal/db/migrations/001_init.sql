@@ -46,9 +46,50 @@ CREATE TABLE invites (
     used_at       TEXT
 );
 
+CREATE TABLE folders (
+    id            INTEGER PRIMARY KEY,
+    owner_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    parent_id     INTEGER REFERENCES folders(id) ON DELETE CASCADE,
+    name          TEXT NOT NULL,
+    created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+    UNIQUE (owner_id, parent_id, name)
+);
+CREATE INDEX idx_folders_parent ON folders(parent_id);
+
+CREATE TABLE groups (
+    id            INTEGER PRIMARY KEY,
+    name          TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    owner_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+
+CREATE TABLE group_members (
+    group_id      INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+    user_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    PRIMARY KEY (group_id, user_id)
+);
+CREATE INDEX idx_group_members_user ON group_members(user_id);
+
+-- A share grants view or edit on one recipe or one folder (recursively) to
+-- one user or one group.
+CREATE TABLE shares (
+    id            INTEGER PRIMARY KEY,
+    subject_type  TEXT NOT NULL CHECK (subject_type IN ('recipe','folder')),
+    subject_id    INTEGER NOT NULL,
+    grantee_type  TEXT NOT NULL CHECK (grantee_type IN ('user','group')),
+    grantee_id    INTEGER NOT NULL,
+    perm          TEXT NOT NULL CHECK (perm IN ('view','edit')),
+    created_by    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+    UNIQUE (subject_type, subject_id, grantee_type, grantee_id)
+);
+CREATE INDEX idx_shares_grantee ON shares(grantee_type, grantee_id);
+CREATE INDEX idx_shares_subject ON shares(subject_type, subject_id);
+
 CREATE TABLE recipes (
     id            INTEGER PRIMARY KEY,
     owner_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    folder_id     INTEGER REFERENCES folders(id) ON DELETE SET NULL,
     title         TEXT NOT NULL,
     description   TEXT NOT NULL DEFAULT '',
     servings      TEXT NOT NULL DEFAULT '',
@@ -60,6 +101,8 @@ CREATE TABLE recipes (
     created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
     updated_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
+
+CREATE INDEX idx_recipes_owner_folder ON recipes(owner_id, folder_id);
 
 CREATE TABLE recipe_ingredients (
     recipe_id     INTEGER NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
