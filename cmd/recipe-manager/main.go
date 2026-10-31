@@ -49,11 +49,14 @@ func healthcheck() int {
 		scheme = "https"
 	}
 	c := &http.Client{Timeout: 3 * time.Second, Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}} //nolint:gosec // local self-probe only
-	resp, err := c.Get(scheme + "://" + net.JoinHostPort(host, port) + "/healthz")
-	if err != nil || resp.StatusCode != http.StatusOK {
+	resp, err := c.Get(scheme + "://" + net.JoinHostPort(host, port) + "/healthz")                                                  //nolint:gosec,noctx // loopback self-probe built from our own listen address
+	if err != nil {
 		return 1
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return 1
+	}
 	return 0
 }
 
@@ -81,7 +84,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	srv, err := server.New(cfg, database, log)
 	if err != nil {
