@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 	"github.com/brett6320/recipe-manager/internal/auth"
 	"github.com/brett6320/recipe-manager/internal/config"
 	"github.com/brett6320/recipe-manager/internal/httpx"
+	"github.com/brett6320/recipe-manager/internal/recipes"
 	"github.com/brett6320/recipe-manager/web"
 )
 
@@ -28,6 +30,7 @@ type Server struct {
 	log        *slog.Logger
 	tmpl       map[string]*template.Template
 	auth       *auth.Store
+	recipes    *recipes.Store
 	keys       *auth.Keyring
 	wa         *webauthn.WebAuthn
 	challenges *auth.ChallengeStore
@@ -49,6 +52,7 @@ func New(cfg *config.Config, db *sql.DB, log *slog.Logger) (*Server, error) {
 		db:         db,
 		log:        log,
 		auth:       auth.NewStore(db),
+		recipes:    recipes.NewStore(db),
 		keys:       keys,
 		wa:         wa,
 		challenges: auth.NewChallengeStore(),
@@ -76,7 +80,29 @@ func (s *Server) cleanupLoop() {
 func (s *Server) parseTemplates(fsys embed.FS) error {
 	funcs := template.FuncMap{
 		"join": strings.Join,
-		"now":  time.Now,
+		"deref": func(p *int64) int64 {
+			if p == nil {
+				return 0
+			}
+			return *p
+		},
+		"minutes": func(p *int) string {
+			if p == nil || *p == 0 {
+				return ""
+			}
+			return strconv.Itoa(*p) + " min"
+		},
+		"paragraphs": func(s string) []string { return strings.Split(s, "\n\n") },
+		"dict": func(kv ...any) map[string]any {
+			m := make(map[string]any, len(kv)/2)
+			for i := 0; i+1 < len(kv); i += 2 {
+				if k, ok := kv[i].(string); ok {
+					m[k] = kv[i+1]
+				}
+			}
+			return m
+		},
+		"now": time.Now,
 		"date": func(t time.Time) string {
 			if t.IsZero() {
 				return ""
@@ -144,6 +170,33 @@ func (s *Server) Handler() http.Handler {
 	// Everything else requires a fully enrolled account.
 	app := func(h http.HandlerFunc) http.Handler { return s.requireUser(h, true) }
 	mux.Handle("GET /{$}", app(s.handleIndex))
+	mux.Handle("GET /search", app(s.handleSearch))
+	mux.Handle("GET /export.json", app(s.handleExportAll))
+
+	mux.Handle("GET /folders/{id}", app(s.handleFolder))
+	mux.Handle("POST /folders", app(s.handleFolderCreate))
+	mux.Handle("POST /folders/{id}/rename", app(s.handleFolderRename))
+	mux.Handle("POST /folders/{id}/move", app(s.handleFolderMove))
+	mux.Handle("POST /folders/{id}/delete", app(s.handleFolderDelete))
+
+	mux.Handle("GET /recipes/new", app(s.handleRecipeNew))
+	mux.Handle("POST /recipes", app(s.handleRecipeCreate))
+	mux.Handle("GET /recipes/{id}", app(s.handleRecipeView))
+	mux.Handle("GET /recipes/{id}/export.json", app(s.handleRecipeExport))
+	mux.Handle("GET /recipes/{id}/edit", app(s.handleRecipeEdit))
+	mux.Handle("POST /recipes/{id}", app(s.handleRecipeUpdate))
+	mux.Handle("POST /recipes/{id}/move", app(s.handleRecipeMove))
+	mux.Handle("POST /recipes/{id}/delete", app(s.handleRecipeDelete))
+
+	mux.Handle("POST /shares", app(s.handleShareAdd))
+	mux.Handle("POST /shares/{id}/delete", app(s.handleShareRemove))
+
+	mux.Handle("GET /groups", app(s.handleGroups))
+	mux.Handle("POST /groups", app(s.handleGroupCreate))
+	mux.Handle("GET /groups/{id}", app(s.handleGroupView))
+	mux.Handle("POST /groups/{id}/members", app(s.handleGroupAddMember))
+	mux.Handle("POST /groups/{id}/members/{uid}/remove", app(s.handleGroupRemoveMember))
+	mux.Handle("POST /groups/{id}/delete", app(s.handleGroupDelete))
 
 	admin := func(h http.HandlerFunc) http.Handler { return s.requireAdmin(h) }
 	mux.Handle("GET /admin", admin(s.handleAdminPage))
@@ -197,10 +250,6 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, status int, name
 	if err := t.ExecuteTemplate(w, "base.html", d); err != nil {
 		s.log.Error("render", "name", name, "err", err)
 	}
-}
-
-func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
-	s.render(w, r, http.StatusOK, "index.html", pageData{Title: "Recipes"})
 }
 
 func (s *Server) serverError(w http.ResponseWriter, r *http.Request, err error) {

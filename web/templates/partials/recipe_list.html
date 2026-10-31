@@ -1,0 +1,18 @@
+{{define "recipe_list"}}
+{{if .}}
+<div class="grid">
+{{range .}}
+  <a class="card recipe-card" href="/recipes/{{.ID}}">
+    <h3>{{.Title}}</h3>
+    {{if .Description}}<p>{{.Description}}</p>{{end}}
+    <p class="meta">
+      {{if .Minutes}}{{.Minutes}} min · {{end}}by {{.OwnerName}}{{if ne .Perm "owner"}} · shared ({{.Perm}}){{end}}
+    </p>
+    {{if .Tags}}<p>{{range .Tags}}<span class="tag">{{.}}</span>{{end}}</p>{{end}}
+  </a>
+{{end}}
+</div>
+{{else}}
+<p class="muted">No recipes here yet.</p>
+{{end}}
+{{end}}

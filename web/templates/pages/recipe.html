@@ -1,0 +1,57 @@
+{{define "content"}}
+{{$r := .Data.Recipe}}
+<nav class="crumbs">
+  <a href="/">{{if .Data.IsOwner}}My recipes{{else}}Shared with me{{end}}</a>
+  {{with .Data.Folder}} / <a href="/folders/{{.ID}}">{{.Path}}</a>{{end}}
+</nav>
+<article class="recipe">
+  <div class="section-head">
+    <h1>{{$r.Title}}</h1>
+    <div class="actions">
+      {{if .Data.Perm.CanEdit}}<a class="btn secondary" href="/recipes/{{$r.ID}}/edit">Edit</a>{{end}}
+      <a class="btn secondary" href="/recipes/{{$r.ID}}/export.json">JSON</a>
+      <button type="button" class="secondary" data-print>Print</button>
+    </div>
+  </div>
+  <p class="meta muted">
+    {{if $r.Servings}}Serves {{$r.Servings}} · {{end}}
+    {{with minutes $r.PrepMinutes}}Prep {{.}} · {{end}}
+    {{with minutes $r.CookMinutes}}Cook {{.}} · {{end}}
+    by {{$r.OwnerName}}{{if not .Data.IsOwner}} (you can {{.Data.Perm}}){{end}}
+    {{if $r.SourceURL}} · <a href="{{$r.SourceURL}}" rel="noopener noreferrer nofollow" target="_blank">Source</a>{{end}}
+  </p>
+  {{if $r.Tags}}<p>{{range $r.Tags}}<a class="tag" href="/search?tag={{.}}">{{.}}</a>{{end}}</p>{{end}}
+  {{if $r.ImageURL}}<img class="hero" src="{{$r.ImageURL}}" alt="" loading="lazy" referrerpolicy="no-referrer">{{end}}
+  {{if $r.Description}}{{range paragraphs $r.Description}}<p>{{.}}</p>{{end}}{{end}}
+  <div class="row">
+    <section class="card">
+      <h2>Ingredients</h2>
+      <ul class="ingredients">{{range $r.Ingredients}}<li>{{.}}</li>{{end}}</ul>
+    </section>
+    <section class="card wide">
+      <h2>Method</h2>
+      <ol class="steps">{{range $r.Steps}}<li>{{.}}</li>{{end}}</ol>
+    </section>
+  </div>
+  {{if $r.Notes}}<section class="card"><h2>Notes</h2>{{range paragraphs $r.Notes}}<p>{{.}}</p>{{end}}</section>{{end}}
+</article>
+
+{{if .Data.IsOwner}}
+<details class="card">
+  <summary>Organise</summary>
+  <form method="post" action="/recipes/{{$r.ID}}/move" class="row">
+    <div><label for="folder">Folder</label>
+      <select id="folder" name="folder">
+        <option value="">(top level)</option>
+        {{range .Data.AllFolders}}<option value="{{.ID}}" {{if eq (deref $r.FolderID) .ID}}selected{{end}}>{{.Path}}</option>{{end}}
+      </select></div>
+    <div class="actions" style="align-self:flex-end"><button type="submit" class="secondary">Move</button></div>
+  </form>
+  <form method="post" action="/recipes/{{$r.ID}}/delete" data-confirm="Delete this recipe permanently?">
+    <div class="actions"><button type="submit" class="danger">Delete recipe</button></div>
+  </form>
+</details>
+{{template "share_panel" (dict "Shares" .Data.Shares "Groups" .Data.Groups "SubjectType" "recipe" "SubjectID" $r.ID "Back" (printf "/recipes/%d" $r.ID))}}
+{{end}}
+<script src="/static/app.js" defer></script>
+{{end}}

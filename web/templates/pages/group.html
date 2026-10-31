@@ -1,0 +1,35 @@
+{{define "content"}}
+{{$g := .Data.Group}}
+<nav class="crumbs"><a href="/groups">Groups</a> / {{$g.Name}}</nav>
+<h1>👥 {{$g.Name}}</h1>
+<p class="muted">Owned by {{$g.OwnerName}}</p>
+<div class="card">
+  <h2>Members</h2>
+  <table>
+    <tbody>
+    {{range .Data.Members}}
+    <tr>
+      <td>{{.DisplayName}} <span class="muted">({{.Username}})</span></td>
+      <td>
+        {{if or $.Data.CanManage (eq .UserID $.User.ID)}}
+        <form method="post" action="/groups/{{$g.ID}}/members/{{.UserID}}/remove" class="inline"><button class="secondary small" type="submit">{{if eq .UserID $.User.ID}}Leave{{else}}Remove{{end}}</button></form>
+        {{end}}
+      </td>
+    </tr>
+    {{end}}
+    </tbody>
+  </table>
+  {{if .Data.CanManage}}
+  <form method="post" action="/groups/{{$g.ID}}/members" class="row">
+    <div><label for="username">Add member by username</label><input id="username" name="username" required autocomplete="off"></div>
+    <div class="actions" style="align-self:flex-end"><button type="submit" class="secondary">Add</button></div>
+  </form>
+  {{end}}
+</div>
+{{if .Data.CanManage}}
+<form method="post" action="/groups/{{$g.ID}}/delete" data-confirm="Delete this group? Shares granted to it are removed.">
+  <button type="submit" class="danger">Delete group</button>
+</form>
+{{end}}
+<script src="/static/app.js" defer></script>
+{{end}}
