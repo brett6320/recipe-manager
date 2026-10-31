@@ -1,0 +1,14 @@
+{{define "content"}}
+<h1>Welcome</h1>
+<div class="card">
+<p>No accounts exist yet. Create the first administrator account. You will add a passkey or authenticator app in the next step; there are no passwords.</p>
+{{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+<form method="post" action="/setup">
+  <label for="username">Username</label>
+  <input id="username" name="username" required autocomplete="username" pattern="[a-z0-9][a-z0-9._-]{1,31}" autofocus>
+  <label for="display_name">Display name</label>
+  <input id="display_name" name="display_name" autocomplete="name" maxlength="64">
+  <div class="actions"><button type="submit">Create account</button></div>
+</form>
+</div>
+{{end}}

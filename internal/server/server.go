@@ -2,6 +2,7 @@
 package server
 
 import (
+	"context"
 	"database/sql"
 	"embed"
 	"html/template"
@@ -12,6 +13,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-webauthn/webauthn/webauthn"
+
+	"github.com/brett6320/recipe-manager/internal/auth"
 	"github.com/brett6320/recipe-manager/internal/config"
 	"github.com/brett6320/recipe-manager/internal/httpx"
 	"github.com/brett6320/recipe-manager/web"
@@ -19,25 +23,72 @@ import (
 
 // Server holds shared dependencies for handlers.
 type Server struct {
-	cfg  *config.Config
-	db   *sql.DB
-	log  *slog.Logger
-	tmpl map[string]*template.Template
+	cfg        *config.Config
+	db         *sql.DB
+	log        *slog.Logger
+	tmpl       map[string]*template.Template
+	auth       *auth.Store
+	keys       *auth.Keyring
+	wa         *webauthn.WebAuthn
+	challenges *auth.ChallengeStore
+	failures   *auth.FailureTracker
 }
 
 // New builds the Server and parses templates.
 func New(cfg *config.Config, db *sql.DB, log *slog.Logger) (*Server, error) {
-	s := &Server{cfg: cfg, db: db, log: log}
+	keys, err := auth.LoadOrCreateKey(cfg.DataDir)
+	if err != nil {
+		return nil, err
+	}
+	wa, err := auth.NewWebAuthn(cfg.RPID, cfg.Origin, "Recipes")
+	if err != nil {
+		return nil, err
+	}
+	s := &Server{
+		cfg:        cfg,
+		db:         db,
+		log:        log,
+		auth:       auth.NewStore(db),
+		keys:       keys,
+		wa:         wa,
+		challenges: auth.NewChallengeStore(),
+		failures:   auth.NewFailureTracker(5, 10*time.Minute, 15*time.Minute),
+	}
 	if err := s.parseTemplates(web.Templates); err != nil {
 		return nil, err
 	}
+	go s.cleanupLoop()
 	return s, nil
+}
+
+func (s *Server) cleanupLoop() {
+	t := time.NewTicker(15 * time.Minute)
+	defer t.Stop()
+	for range t.C {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		if err := s.auth.Cleanup(ctx); err != nil {
+			s.log.Error("cleanup", "err", err)
+		}
+		cancel()
+	}
 }
 
 func (s *Server) parseTemplates(fsys embed.FS) error {
 	funcs := template.FuncMap{
 		"join": strings.Join,
 		"now":  time.Now,
+		"date": func(t time.Time) string {
+			if t.IsZero() {
+				return ""
+			}
+			return t.Local().Format("2006-01-02 15:04")
+		},
+		"datep": func(t *time.Time) string {
+			if t == nil {
+				return "never"
+			}
+			return t.Local().Format("2006-01-02 15:04")
+		},
 	}
 	pages, err := fs.Glob(fsys, "templates/pages/*.html")
 	if err != nil {
@@ -64,7 +115,41 @@ func (s *Server) Handler() http.Handler {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		_, _ = w.Write([]byte("ok"))
 	})
-	mux.HandleFunc("GET /{$}", s.handleIndex)
+
+	// Authentication endpoints get a stricter per-IP limiter.
+	authLimit := httpx.NewLimiter(1, 15)
+	pub := func(h http.HandlerFunc) http.Handler { return authLimit.Middleware(s.withSession(h)) }
+
+	mux.Handle("GET /setup", pub(s.handleSetupPage))
+	mux.Handle("POST /setup", pub(s.handleSetup))
+	mux.Handle("GET /login", pub(s.handleLoginPage))
+	mux.Handle("POST /login/totp", pub(s.handleLoginTOTP))
+	mux.Handle("POST /api/webauthn/login/begin", pub(s.handleWALoginBegin))
+	mux.Handle("POST /api/webauthn/login/finish", pub(s.handleWALoginFinish))
+	mux.Handle("GET /register", pub(s.handleRegisterPage))
+	mux.Handle("POST /register", pub(s.handleRegister))
+	mux.Handle("POST /logout", s.withSession(s.handleLogout))
+
+	// Security settings are reachable even before enrolment completes.
+	sec := func(h http.HandlerFunc) http.Handler { return s.requireUser(h, false) }
+	mux.Handle("GET /security", sec(s.handleSecurityPage))
+	mux.Handle("POST /api/webauthn/register/begin", sec(s.handleWARegisterBegin))
+	mux.Handle("POST /api/webauthn/register/finish", sec(s.handleWARegisterFinish))
+	mux.Handle("POST /security/passkeys/{id}/delete", sec(s.handlePasskeyDelete))
+	mux.Handle("POST /security/totp/begin", sec(s.handleTOTPBegin))
+	mux.Handle("POST /security/totp/confirm", sec(s.handleTOTPConfirm))
+	mux.Handle("POST /security/totp/remove", sec(s.handleTOTPRemove))
+	mux.Handle("POST /security/sessions/revoke", sec(s.handleRevokeSessions))
+
+	// Everything else requires a fully enrolled account.
+	app := func(h http.HandlerFunc) http.Handler { return s.requireUser(h, true) }
+	mux.Handle("GET /{$}", app(s.handleIndex))
+
+	admin := func(h http.HandlerFunc) http.Handler { return s.requireAdmin(h) }
+	mux.Handle("GET /admin", admin(s.handleAdminPage))
+	mux.Handle("POST /admin/invites", admin(s.handleAdminInvite))
+	mux.Handle("POST /admin/users/{id}/delete", admin(s.handleAdminDeleteUser))
+	mux.Handle("POST /admin/users/{id}/admin", admin(s.handleAdminToggleAdmin))
 
 	global := httpx.NewLimiter(50, 100)
 
@@ -89,15 +174,23 @@ func cacheStatic(next http.Handler) http.Handler {
 type pageData struct {
 	Title string
 	Flash string
+	Error string
+	User  *auth.User
 	Data  any
 }
 
-func (s *Server) render(w http.ResponseWriter, status int, name string, d pageData) {
+func (s *Server) render(w http.ResponseWriter, r *http.Request, status int, name string, d pageData) {
 	t, ok := s.tmpl[name]
 	if !ok {
 		s.log.Error("missing template", "name", name)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
+	}
+	if d.User == nil {
+		d.User = currentUser(r)
+	}
+	if d.Flash == "" {
+		d.Flash = s.takeFlash(w, r)
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(status)
@@ -107,5 +200,10 @@ func (s *Server) render(w http.ResponseWriter, status int, name string, d pageDa
 }
 
 func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
-	s.render(w, http.StatusOK, "index.html", pageData{Title: "Recipes"})
+	s.render(w, r, http.StatusOK, "index.html", pageData{Title: "Recipes"})
+}
+
+func (s *Server) serverError(w http.ResponseWriter, r *http.Request, err error) {
+	s.log.Error("handler error", "path", r.URL.Path, "err", err)
+	http.Error(w, "internal server error", http.StatusInternalServerError)
 }

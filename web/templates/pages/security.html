@@ -1,0 +1,60 @@
+{{define "content"}}
+<h1>Security</h1>
+{{if not .Data.Complete}}
+<div class="card warn"><strong>Finish setup:</strong> add at least one passkey or an authenticator app to use the app.</div>
+{{end}}
+
+<div class="card">
+  <h2>Passkeys</h2>
+  {{if .Data.Passkeys}}
+  <table>
+    <thead><tr><th>Name</th><th>Added</th><th>Last used</th><th></th></tr></thead>
+    <tbody>
+    {{range .Data.Passkeys}}
+    <tr>
+      <td>{{.Name}}</td>
+      <td>{{date .CreatedAt}}</td>
+      <td>{{datep .LastUsedAt}}</td>
+      <td><form method="post" action="/security/passkeys/{{.ID}}/delete"><button class="danger small" type="submit">Remove</button></form></td>
+    </tr>
+    {{end}}
+    </tbody>
+  </table>
+  {{else}}<p class="muted">No passkeys yet.</p>{{end}}
+  <form id="passkey-add" class="row" autocomplete="off">
+    <div>
+      <label for="passkey-name">Name for the new passkey</label>
+      <input id="passkey-name" maxlength="64" placeholder="e.g. Laptop, Phone, YubiKey">
+    </div>
+    <div class="actions" style="align-self:flex-end"><button type="submit">Add passkey</button></div>
+  </form>
+  <p id="passkey-error" class="error" hidden></p>
+</div>
+
+<div class="card">
+  <h2>Authenticator app (TOTP)</h2>
+  {{if .Data.Enrolment}}
+    <p>Scan this QR code with your authenticator app, then enter the current code to confirm.</p>
+    <img src="{{.Data.Enrolment.QRData}}" alt="TOTP QR code" width="220" height="220">
+    <p class="muted">Or enter manually: <code>{{.Data.Enrolment.Secret}}</code></p>
+    <form method="post" action="/security/totp/confirm">
+      <label for="totp-code">Code from app</label>
+      <input id="totp-code" name="code" required inputmode="numeric" pattern="[0-9 ]{6,7}" autocomplete="one-time-code" autofocus>
+      <div class="actions"><button type="submit">Confirm</button></div>
+    </form>
+  {{else if .Data.TOTPEnabled}}
+    <p>Authenticator app is <strong>enabled</strong>.</p>
+    <form method="post" action="/security/totp/remove"><button class="danger" type="submit">Remove authenticator app</button></form>
+  {{else}}
+    <p class="muted">Not set up. Works with any TOTP app (1Password, Bitwarden, Google Authenticator, Authy…).</p>
+    <form method="post" action="/security/totp/begin"><button type="submit" class="secondary">Set up authenticator app</button></form>
+  {{end}}
+</div>
+
+<div class="card">
+  <h2>Sessions</h2>
+  <p class="muted">{{.Data.Sessions}} active session(s), including this one.</p>
+  <form method="post" action="/security/sessions/revoke"><button class="secondary" type="submit">Sign out everywhere else</button></form>
+</div>
+<script src="/static/webauthn.js" defer></script>
+{{end}}

@@ -1,5 +1,15 @@
 {{define "nav"}}
 <header class="nav">
   <a class="brand" href="/">Recipes</a>
+  {{if .User}}
+  <a href="/recipes/new">New</a>
+  <a href="/import">Import</a>
+  <span class="spacer"></span>
+  {{if .User.IsAdmin}}<a href="/admin">Admin</a>{{end}}
+  <a href="/security">{{.User.DisplayName}}</a>
+  <form method="post" action="/logout" class="inline"><button class="secondary small" type="submit">Sign out</button></form>
+  {{else}}
+  <span class="spacer"></span>
+  {{end}}
 </header>
 {{end}}

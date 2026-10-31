@@ -1,0 +1,42 @@
+{{define "content"}}
+<h1>Admin</h1>
+<div class="card">
+  <h2>Invite a user</h2>
+  {{if .Data.Invite}}
+  <p>Send this link to the new user. It is shown once and expires in 48 hours:</p>
+  <pre>{{.Data.Invite}}</pre>
+  {{end}}
+  <p class="muted">{{.Data.Pending}} pending invite(s).</p>
+  <form method="post" action="/admin/invites"><button type="submit">Create invite link</button></form>
+</div>
+<div class="card">
+  <h2>Users</h2>
+  <table>
+    <thead><tr><th>Username</th><th>Name</th><th>Passkeys</th><th>TOTP</th><th>Admin</th><th>Joined</th><th></th></tr></thead>
+    <tbody>
+    {{range .Data.Users}}
+    <tr>
+      <td>{{.Username}}</td>
+      <td>{{.DisplayName}}</td>
+      <td>{{.Passkeys}}</td>
+      <td>{{if .TOTP}}yes{{else}}no{{end}}</td>
+      <td>
+        <form method="post" action="/admin/users/{{.ID}}/admin" class="inline">
+          <button class="secondary small" type="submit">{{if .IsAdmin}}Revoke admin{{else}}Make admin{{end}}</button>
+        </form>
+      </td>
+      <td>{{date .CreatedAt}}</td>
+      <td>
+        {{if ne .ID $.User.ID}}
+        <form method="post" action="/admin/users/{{.ID}}/delete" class="inline" data-confirm="Delete {{.Username}} and all their sessions and credentials?">
+          <button class="danger small" type="submit">Delete</button>
+        </form>
+        {{end}}
+      </td>
+    </tr>
+    {{end}}
+    </tbody>
+  </table>
+</div>
+<script src="/static/app.js" defer></script>
+{{end}}
