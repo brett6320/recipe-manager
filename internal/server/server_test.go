@@ -39,7 +39,7 @@ func newTestEnv(t *testing.T) *testEnv {
 	u, _ := url.Parse(ts.URL)
 	cfg := &config.Config{
 		Listen: u.Host, DataDir: dir, PublicURL: u, RPID: "localhost", Origin: ts.URL,
-		DevInsecure: true, SessionTTL: time.Hour, SessionIdle: time.Hour,
+		DevInsecure: true, SessionTTL: time.Hour, SessionIdle: time.Hour, ImportMaxSize: 8 << 20,
 	}
 	s, err := New(cfg, database, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	if err != nil {

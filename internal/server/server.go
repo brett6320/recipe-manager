@@ -19,6 +19,7 @@ import (
 	"github.com/brett6320/recipe-manager/internal/auth"
 	"github.com/brett6320/recipe-manager/internal/config"
 	"github.com/brett6320/recipe-manager/internal/httpx"
+	"github.com/brett6320/recipe-manager/internal/importer"
 	"github.com/brett6320/recipe-manager/internal/recipes"
 	"github.com/brett6320/recipe-manager/web"
 )
@@ -31,6 +32,7 @@ type Server struct {
 	tmpl       map[string]*template.Template
 	auth       *auth.Store
 	recipes    *recipes.Store
+	fetcher    *importer.Fetcher
 	keys       *auth.Keyring
 	wa         *webauthn.WebAuthn
 	challenges *auth.ChallengeStore
@@ -53,6 +55,7 @@ func New(cfg *config.Config, db *sql.DB, log *slog.Logger) (*Server, error) {
 		log:        log,
 		auth:       auth.NewStore(db),
 		recipes:    recipes.NewStore(db),
+		fetcher:    importer.NewFetcher(cfg.ImportMaxSize),
 		keys:       keys,
 		wa:         wa,
 		challenges: auth.NewChallengeStore(),
@@ -172,6 +175,8 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /{$}", app(s.handleIndex))
 	mux.Handle("GET /search", app(s.handleSearch))
 	mux.Handle("GET /export.json", app(s.handleExportAll))
+	mux.Handle("GET /import", app(s.handleImportPage))
+	mux.Handle("POST /import", app(s.handleImport))
 
 	mux.Handle("GET /folders/{id}", app(s.handleFolder))
 	mux.Handle("POST /folders", app(s.handleFolderCreate))
@@ -213,7 +218,7 @@ func (s *Server) Handler() http.Handler {
 		httpx.SecurityHeaders(!s.cfg.DevInsecure),
 		global.Middleware,
 		httpx.OriginCheck(s.cfg.Origin),
-		httpx.MaxBody(1<<20),
+		httpx.MaxBody(1<<20, map[string]int64{"/import": s.cfg.ImportMaxSize + 64<<10}),
 	)
 }
 
