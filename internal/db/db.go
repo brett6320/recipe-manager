@@ -28,11 +28,11 @@ func Open(ctx context.Context, path string) (*sql.DB, error) {
 	// SQLITE_BUSY churn and keeps pragmas consistent.
 	d.SetMaxOpenConns(1)
 	if err := d.PingContext(ctx); err != nil {
-		d.Close()
+		_ = d.Close()
 		return nil, err
 	}
 	if err := migrate(ctx, d); err != nil {
-		d.Close()
+		_ = d.Close()
 		return nil, err
 	}
 	return d, nil
@@ -70,11 +70,11 @@ func migrate(ctx context.Context, d *sql.DB) error {
 			return err
 		}
 		if _, err := tx.ExecContext(ctx, string(body)); err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			return fmt.Errorf("migration %s: %w", name, err)
 		}
 		if _, err := tx.ExecContext(ctx, `INSERT INTO schema_migrations (name) VALUES (?)`, name); err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			return err
 		}
 		if err := tx.Commit(); err != nil {

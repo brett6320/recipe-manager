@@ -1,6 +1,7 @@
 package httpx
 
 import (
+	"context"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -11,7 +12,7 @@ import (
 func TestRealIP(t *testing.T) {
 	_, cf, _ := net.ParseCIDR("103.21.244.0/22")
 	h := RealIP([]*net.IPNet{cf}, false)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(ClientIP(r)))
+		_, _ = w.Write([]byte(ClientIP(r)))
 	}))
 
 	cases := []struct{ remote, cfip, want string }{
@@ -20,7 +21,7 @@ func TestRealIP(t *testing.T) {
 		{"103.21.244.9:1234", "", "103.21.244.9"},            // proxy without header
 	}
 	for _, c := range cases {
-		r := httptest.NewRequest("GET", "/", nil)
+		r := httptest.NewRequestWithContext(context.Background(), "GET", "/", nil)
 		r.RemoteAddr = c.remote
 		if c.cfip != "" {
 			r.Header.Set("CF-Connecting-IP", c.cfip)
@@ -36,7 +37,7 @@ func TestRealIP(t *testing.T) {
 func TestRealIPRequireProxy(t *testing.T) {
 	_, cf, _ := net.ParseCIDR("103.21.244.0/22")
 	h := RealIP([]*net.IPNet{cf}, true)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
-	r := httptest.NewRequest("GET", "/", nil)
+	r := httptest.NewRequestWithContext(context.Background(), "GET", "/", nil)
 	r.RemoteAddr = "198.51.100.7:1234"
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, r)
@@ -58,7 +59,7 @@ func TestOriginCheck(t *testing.T) {
 		{"POST", "https://recipes.example.com", "cross-site", 403},
 	}
 	for _, c := range cases {
-		r := httptest.NewRequest(c.method, "/x", strings.NewReader(""))
+		r := httptest.NewRequestWithContext(context.Background(), c.method, "/x", strings.NewReader(""))
 		if c.origin != "" {
 			r.Header.Set("Origin", c.origin)
 		}
